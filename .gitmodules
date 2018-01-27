@@ -1,0 +1,4 @@
+[submodule "deps/igraph-0.7.1"]
+	path = deps/igraph-0.7.1
+	url = https://github.com/igraph/igraph.git
+	branch = release-0.7
