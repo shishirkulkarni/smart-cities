@@ -3,129 +3,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-// int print_attributes(const igraph_t *g) {
-
-//   igraph_vector_t gtypes, vtypes, etypes;
-//   igraph_strvector_t gnames, vnames, enames;
-//   long int i;
-
-//   igraph_vector_t vec;
-//   igraph_strvector_t svec;
-//   long int j;
-
-//   igraph_vector_init(&gtypes, 0);
-//   igraph_vector_init(&vtypes, 0);
-//   igraph_vector_init(&etypes, 0);
-//   igraph_strvector_init(&gnames, 0);
-//   igraph_strvector_init(&vnames, 0);
-//   igraph_strvector_init(&enames, 0);
-
-//   igraph_cattribute_list(g, &gnames, &gtypes, &vnames, &vtypes, 
-// 			 &enames, &etypes);
-
-//   /* Graph attributes */
-//   for (i=0; i<igraph_strvector_size(&gnames); i++) {
-//     printf("%s=", STR(gnames, i));
-//     if (VECTOR(gtypes)[i]==IGRAPH_ATTRIBUTE_NUMERIC) {
-//       igraph_real_printf(GAN(g, STR(gnames,i)));
-//       putchar(' ');
-//     } else {
-//       printf("\"%s\" ", GAS(g, STR(gnames,i)));
-//     }
-//   }
-//   printf("\n");
-
-//   for (i=0; i<igraph_vcount(g); i++) {
-//     long int j;
-//     printf("Vertex %li: ", i);
-//     for (j=0; j<igraph_strvector_size(&vnames); j++) {
-//       printf("%s=", STR(vnames, j));
-//       if (VECTOR(vtypes)[j]==IGRAPH_ATTRIBUTE_NUMERIC) {
-// 	igraph_real_printf(VAN(g, STR(vnames,j), i));
-// 	putchar(' ');
-//       } else {
-// 	printf("\"%s\" ", VAS(g, STR(vnames,j), i));
-//       }
-//     }
-//     printf("\n");
-//   }
-
-//   for (i=0; i<igraph_ecount(g); i++) {
-//     long int j;
-//     printf("Edge %li (%i-%i): ", i, (int)IGRAPH_FROM(g,i), (int)IGRAPH_TO(g,i));
-//     for (j=0; j<igraph_strvector_size(&enames); j++) {
-//       printf("%s=", STR(enames, j));
-//       if (VECTOR(etypes)[j]==IGRAPH_ATTRIBUTE_NUMERIC) {
-// 	igraph_real_printf(EAN(g, STR(enames, j), i));
-// 	putchar(' ');
-//       } else {
-// 	printf("\"%s\" ", EAS(g, STR(enames, j), i));
-//       }
-//     }
-//     printf("\n");
-//   }
-
-//    Check vector-based query functions 
-//   igraph_vector_init(&vec, 0);
-//   igraph_strvector_init(&svec, 0);
-  
-//   for (j=0; j<igraph_strvector_size(&vnames); j++) {
-//     if (VECTOR(vtypes)[j]==IGRAPH_ATTRIBUTE_NUMERIC) {
-//       igraph_cattribute_VANV(g, STR(vnames, j), igraph_vss_all(), &vec);
-//       for (i=0; i<igraph_vcount(g); i++) {
-// 	igraph_real_t num=VAN(g, STR(vnames, j), i);
-// 	if (num != VECTOR(vec)[i] &&
-// 	    (!isnan(num) || !isnan(VECTOR(vec)[i]))) {
-// 	  exit(51);
-// 	}
-//       }
-//     } else {
-//       igraph_cattribute_VASV(g, STR(vnames, j), igraph_vss_all(), &svec);
-//       for (i=0; i<igraph_vcount(g); i++) {
-// 	const char *str=VAS(g, STR(vnames, j), i);
-// 	if (strcmp(str,STR(svec, i))) {
-// 	  exit(52);
-// 	}
-//       }
-//     }
-//   }
-
-//   for (j=0; j<igraph_strvector_size(&enames); j++) {
-//     if (VECTOR(etypes)[j]==IGRAPH_ATTRIBUTE_NUMERIC) {
-//       igraph_cattribute_EANV(g, STR(enames, j), 
-// 			     igraph_ess_all(IGRAPH_EDGEORDER_ID), &vec);
-//       for (i=0; i<igraph_ecount(g); i++) {
-// 	igraph_real_t num=EAN(g, STR(enames, j), i);
-// 	if (num != VECTOR(vec)[i] && 
-// 	    (!isnan(num) || !isnan(VECTOR(vec)[i]))) {
-// 	  exit(53);
-// 	}
-//       }
-//     } else {
-//       igraph_cattribute_EASV(g, STR(enames, j), 
-// 			     igraph_ess_all(IGRAPH_EDGEORDER_ID), &svec);
-//       for (i=0; i<igraph_ecount(g); i++) {
-// 	const char *str=EAS(g, STR(enames, j), i);
-// 	if (strcmp(str,STR(svec, i))) {
-// 	  exit(54);
-// 	}
-//       }
-//     }
-//   }
-
-//   igraph_strvector_destroy(&svec);
-//   igraph_vector_destroy(&vec);
-
-//   igraph_strvector_destroy(&enames);
-//   igraph_strvector_destroy(&vnames);
-//   igraph_strvector_destroy(&gnames);
-//   igraph_vector_destroy(&etypes);
-//   igraph_vector_destroy(&vtypes);
-//   igraph_vector_destroy(&gtypes);
-
-//   return 0;
-// }
-
+#include <smart-cities/lib.h>
 
 /*
 * Currently assuming that vertex iterators and edge iterators are going to return
@@ -212,6 +90,33 @@ static void compute_mst(igraph_t *graph, igraph_t *tree) {
 	igraph_minimum_spanning_tree_prim(graph, tree, &weights);
 }
 
+
+/*
+* @param tree: graph containing the minimum spanning tree
+* @param eb: _uninitialized_ igraph vector
+*/
+static void compute_edge_betweenness(igraph_t *tree, igraph_vector_t *eb) {
+	int i = 0;
+
+	igraph_vector_init(eb, igraph_ecount(tree));
+
+	igraph_edge_betweenness(tree, eb, IGRAPH_UNDIRECTED, 0);
+
+	igraph_es_t es;
+	igraph_eit_t eit;
+
+	igraph_es_all(&es, IGRAPH_EDGEORDER_ID);
+	igraph_eit_create(tree, es, &eit);
+
+	while(!IGRAPH_EIT_END(eit)) {
+		SETEAN(tree, "eb", IGRAPH_EIT_GET(eit), VECTOR(*eb)[i++]);
+		IGRAPH_EIT_NEXT(eit);
+	}
+
+	igraph_es_destroy(&es);
+	igraph_eit_destroy(&eit);
+}
+
 static void print_weights(igraph_t *g) {
 	igraph_es_t es;
 	igraph_eit_t eit;
@@ -230,15 +135,17 @@ static void print_weights(igraph_t *g) {
 	igraph_eit_destroy(&eit);
 }
 
+
+
 int main() {
-	igraph_t g, g2;
+	igraph_t g;
 	FILE *ifile;
-	igraph_vector_t gtypes, vtypes, etypes;
-	igraph_strvector_t gnames, vnames, enames;
+	// igraph_vector_t gtypes, vtypes, etypes;
+	// igraph_strvector_t gnames, vnames, enames;
 	long int i;
-	igraph_vector_t y;
-	igraph_strvector_t id;
-	char str[20];
+	// igraph_vector_t y;
+	// igraph_strvector_t id;
+	// char str[20];
 
 	/* turn on attribute handling */
 	igraph_i_set_attribute_table(&igraph_cattribute_table);
@@ -251,26 +158,91 @@ int main() {
 	igraph_read_graph_gml(&g, ifile);
 	fclose(ifile);
 
-	igraph_vector_init(&gtypes, 0);
-	igraph_vector_init(&vtypes, 0);
-	igraph_vector_init(&etypes, 0);
-	igraph_strvector_init(&gnames, 0);
-	igraph_strvector_init(&vnames, 0);
-	igraph_strvector_init(&enames, 0);
+	// igraph_vector_init(&gtypes, 0);
+	// igraph_vector_init(&vtypes, 0);
+	// igraph_vector_init(&etypes, 0);
+	// igraph_strvector_init(&gnames, 0);
+	// igraph_strvector_init(&vnames, 0);
+	// igraph_strvector_init(&enames, 0);
   
-	igraph_cattribute_list(&g, &gnames, &gtypes, &vnames, &vtypes, 
-		&enames, &etypes);
+	// igraph_cattribute_list(&g, &gnames, &gtypes, &vnames, &vtypes, 
+		// &enames, &etypes);
 
 	// Set Labels to vertices
 	for(i = 0; i < igraph_vcount(&g); i++) {
 		SETVAN(&g, "label", i, i);
 	}
+	// Set Labels to edges
+	for(i = 0; i < igraph_ecount(&g); i++) {
+		SETEAN(&g, "label", i, i);
+	}
 
 	// Calculate Neighborhood overlap
 	calculate_nover_for_edges(&g);
-	// print_weights(&g);
-
+	
+	// Calculate edge betweenness
+	igraph_vector_t eb;
+	compute_edge_betweenness(&g, &eb);
+	
 	igraph_t tree;
 	compute_mst(&g, &tree);
+	
+
+	// Compute modularity and local maximum
+	igraph_es_t es;
+	igraph_eit_t eit;
+	igraph_es_all(&es, IGRAPH_EDGEORDER_ID);
+	igraph_eit_create(&tree, es, &eit);
+
+	// Create a lookup matrix to remove k-1 edges based on descending order
+	// of edge betweenness
+
+	igraph_matrix_t lookup;
+	igraph_matrix_init(&lookup, igraph_ecount(&tree), 2);
+
+	while(!IGRAPH_EIT_END(eit)) {
+		long int e_id = IGRAPH_EIT_GET(eit); 
+		MATRIX(lookup, IGRAPH_EIT_GET(eit), 0) = IGRAPH_EIT_GET(eit);
+		MATRIX(lookup, IGRAPH_EIT_GET(eit), 1) = EAN(&tree, "eb", IGRAPH_EIT_GET(eit));
+		IGRAPH_EIT_NEXT(eit);
+	}
+
+	sc_sort_matrix(&lookup, 1, SC_DESC);
+	// sc_print_matrix(lookup);
+
+	//After this, everytime you will generate a random number k,
+	// Copy the mst to a new variable and delete k-1 edges from the
+	// new varaible and compute its modularity
+
+	igraph_t copy_tree;
+	int k = sc_rand(igraph_matrix_nrow(&lookup));
+	
+	igraph_copy(&copy_tree, &tree);
+
+	igraph_vector_t v;
+	igraph_vector_init(&v, 0);
+
+	for(i = 0; i < k; i++) {
+		igraph_vector_push_back(&v, (int)MATRIX(lookup, i, 0));
+	}
+
+	igraph_delete_edges(&copy_tree, igraph_ess_vector(&v));
+
+	igraph_vector_t membership, csize, weights;
+	int count;
+	igraph_real_t modularity;
+
+	igraph_vector_init(&membership, 0);
+	igraph_vector_init(&csize, 0);
+	igraph_vector_init(&weights, 0);
+
+	igraph_clusters(&copy_tree, &membership, &csize, &count, IGRAPH_STRONG);
+
+	sc_fill_vector_edge_nattribute(&copy_tree, &weights, "eb");
+	
+	igraph_modularity(&copy_tree, &membership, &modularity, &weights);
+
+	printf("modularity: %f\n", modularity);
+
 	return 0;
 }

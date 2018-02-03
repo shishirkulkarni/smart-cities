@@ -2,11 +2,16 @@
 
 INCLUDE = -Iinclude -Iinclude/igraph
 LDPARAMS = -Llib
-LIBS = -ligraph
+LIBS = -ligraph -lsc
 BIN = bin
 SRC = src
+LIB = lib
 
-all: kruskal
+all: libs kruskal
+
+libs:
+	$(CC) -c $(INCLUDE) -fPIC $(SRC)/libsc.c -o $(BIN)/libsc.o
+	$(CC) -shared -o $(LIB)/libsc.so $(BIN)/libsc.o
 
 kruskal:
 	$(CC) $(INCLUDE) $(LDPARAMS) $(SRC)/kruskal_community.c -o $(BIN)/kruskal.o $(LIBS)

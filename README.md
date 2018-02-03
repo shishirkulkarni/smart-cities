@@ -13,7 +13,7 @@ A project implemented using igraph C library to analyze and compare different co
 * `cp include/* ../../include`
 * `cp .src/libs/libigraph.so* ../../lib`
 * `cd ../..`
-* export LD_LIBRARY_PATH = lib/
-* make
+* `export LD_LIBRARY_PATH = lib/`
+* `make`
 
 You will find all the executables in the bin directory
