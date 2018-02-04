@@ -3,14 +3,16 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <smart-cities/lib.h>
+#include <smart-cities/libsc.h>
+
+#define PRIM 0
+#define KRUSKAL 1
 
 /*
 * Currently assuming that vertex iterators and edge iterators are going to return
 * the values in sorted order only. So the computation of neighborhood overlap
 * becomes easier.
 */
-
 static void calculate_nover_for_edges(igraph_t *g) {
 	int retval, i;
 	igraph_es_t es;
@@ -78,16 +80,28 @@ static void calculate_nover_for_edges(igraph_t *g) {
 	igraph_es_destroy(&es);
 }
 
-//Currently computing the spanning tree using Prim's Algorithm
-// provided by the library
-static void compute_mst(igraph_t *graph, igraph_t *tree) {
+static void compute_mst(igraph_t *graph, igraph_t *tree, int algo, const char* wt_attr) {
 	igraph_vector_t weights, res;
-	int i, retval;
+	igraph_eit_t eit;
 
-	igraph_vector_init(&weights, igraph_ecount(graph));
-	igraph_vector_init(&res, igraph_ecount(graph));
+	switch(algo) {
+		default:
+		case PRIM:
+			igraph_vector_init(&weights, 0);
+			igraph_eit_create(graph, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
 
-	igraph_minimum_spanning_tree_prim(graph, tree, &weights);
+			while(!IGRAPH_EIT_END(eit)) {
+				igraph_vector_push_back(&weights, EAN(graph, wt_attr, IGRAPH_EIT_GET(eit)));
+				IGRAPH_EIT_NEXT(eit);
+			}
+
+			igraph_eit_destroy(&eit);
+			igraph_minimum_spanning_tree_prim(graph, tree, &weights);
+			break;
+		case KRUSKAL:
+			sc_mst_kruskal_igraph(graph, tree, wt_attr);
+			break;
+	}
 }
 
 
@@ -136,42 +150,65 @@ static void print_weights(igraph_t *g) {
 }
 
 
+/*
+*	
+*/
+static void compute_modularity_k(igraph_t *tree, igraph_matrix_t lookup, int k, igraph_real_t *modularity) {
+	int i;
+	igraph_t copy_tree;
+	igraph_copy(&copy_tree, tree);
+
+
+	igraph_vector_t v;
+	igraph_vector_init(&v, 0);
+
+	for(i = 0; i < k; i++) {
+		igraph_vector_push_back(&v, (int)MATRIX(lookup, i, 0));
+	}
+
+	// sc_print_vector(v);
+
+	igraph_delete_edges(&copy_tree, igraph_ess_vector(&v));
+	// printf("%d\n", igraph_ecount(&copy_tree));
+
+	igraph_vector_t membership, csize, weights;
+	int count;
+
+	igraph_vector_init(&membership, 0);
+	igraph_vector_init(&csize, 0);
+	igraph_vector_init(&weights, 0);
+
+	igraph_clusters(&copy_tree, &membership, &csize, &count, IGRAPH_STRONG);
+
+	sc_fill_vector_edge_nattribute(&copy_tree, &weights, "eb");
+	// sc_print_vector(weights);
+	
+	igraph_modularity(&copy_tree, &membership, modularity, &weights);
+}
+
+
 
 int main() {
 	igraph_t g;
 	FILE *ifile;
-	// igraph_vector_t gtypes, vtypes, etypes;
-	// igraph_strvector_t gnames, vnames, enames;
 	long int i;
-	// igraph_vector_t y;
-	// igraph_strvector_t id;
-	// char str[20];
 
 	/* turn on attribute handling */
 	igraph_i_set_attribute_table(&igraph_cattribute_table);
 
 	ifile=fopen("data/karate.gml", "r");
-	if (ifile==0) {
+	if (ifile == 0) {
 		return 10;
 	}
 
 	igraph_read_graph_gml(&g, ifile);
 	fclose(ifile);
 
-	// igraph_vector_init(&gtypes, 0);
-	// igraph_vector_init(&vtypes, 0);
-	// igraph_vector_init(&etypes, 0);
-	// igraph_strvector_init(&gnames, 0);
-	// igraph_strvector_init(&vnames, 0);
-	// igraph_strvector_init(&enames, 0);
-  
-	// igraph_cattribute_list(&g, &gnames, &gtypes, &vnames, &vtypes, 
-		// &enames, &etypes);
-
 	// Set Labels to vertices
 	for(i = 0; i < igraph_vcount(&g); i++) {
 		SETVAN(&g, "label", i, i);
 	}
+
 	// Set Labels to edges
 	for(i = 0; i < igraph_ecount(&g); i++) {
 		SETEAN(&g, "label", i, i);
@@ -185,8 +222,7 @@ int main() {
 	compute_edge_betweenness(&g, &eb);
 	
 	igraph_t tree;
-	compute_mst(&g, &tree);
-	
+	compute_mst(&g, &tree, KRUSKAL, "eb");
 
 	// Compute modularity and local maximum
 	igraph_es_t es;
@@ -196,7 +232,6 @@ int main() {
 
 	// Create a lookup matrix to remove k-1 edges based on descending order
 	// of edge betweenness
-
 	igraph_matrix_t lookup;
 	igraph_matrix_init(&lookup, igraph_ecount(&tree), 2);
 
@@ -208,41 +243,52 @@ int main() {
 	}
 
 	sc_sort_matrix(&lookup, 1, SC_DESC);
-	// sc_print_matrix(lookup);
 
-	//After this, everytime you will generate a random number k,
+	//After this, everytime we will generate a random number k,
 	// Copy the mst to a new variable and delete k-1 edges from the
 	// new varaible and compute its modularity
+	igraph_vector_t visited;
 
-	igraph_t copy_tree;
-	int k = sc_rand(igraph_matrix_nrow(&lookup));
-	
-	igraph_copy(&copy_tree, &tree);
+	igraph_vector_init(&visited, 0);
 
-	igraph_vector_t v;
-	igraph_vector_init(&v, 0);
+	igraph_real_t approx_modularity = 0.0;
 
-	for(i = 0; i < k; i++) {
-		igraph_vector_push_back(&v, (int)MATRIX(lookup, i, 0));
+	for(i = 0; i < 20 && igraph_vector_size(&visited) <= igraph_ecount(&tree); i++) {
+
+		int k = sc_rand(igraph_matrix_nrow(&lookup));
+
+		//Generate a non visited random number
+		while(igraph_vector_contains(&visited, k)) {
+			k = sc_rand(igraph_matrix_nrow(&lookup));
+		}
+
+		igraph_vector_push_back(&visited, k);
+
+		igraph_real_t modularity_k = -1,
+			modularity_k_2 = -1,
+			modularity_2k = -1;
+
+		igraph_real_t sum = 0.0;
+		int count = 0; 
+		
+		compute_modularity_k(&tree, lookup, k, &modularity_k);
+		sum += modularity_k;
+		count++;
+
+		compute_modularity_k(&tree, lookup, k / 2, &modularity_k_2);
+		sum += modularity_k_2;
+		count++;
+
+		if(2 * k < igraph_ecount(&tree)) {
+			compute_modularity_k(&tree, lookup, 2 * k, &modularity_2k);
+			sum += modularity_2k;
+			count++;
+		}
+		
+		sum = sum / count;
+		approx_modularity += sum;
+		
 	}
-
-	igraph_delete_edges(&copy_tree, igraph_ess_vector(&v));
-
-	igraph_vector_t membership, csize, weights;
-	int count;
-	igraph_real_t modularity;
-
-	igraph_vector_init(&membership, 0);
-	igraph_vector_init(&csize, 0);
-	igraph_vector_init(&weights, 0);
-
-	igraph_clusters(&copy_tree, &membership, &csize, &count, IGRAPH_STRONG);
-
-	sc_fill_vector_edge_nattribute(&copy_tree, &weights, "eb");
-	
-	igraph_modularity(&copy_tree, &membership, &modularity, &weights);
-
-	printf("modularity: %f\n", modularity);
-
+	printf("Approx Modularity: %f\n", approx_modularity / igraph_vector_size(&visited));
 	return 0;
 }
