@@ -1,0 +1,5 @@
+[submodule "deps/igraph"]
+	path = deps/igraph
+	url = https://github.com/igraph/igraph.git
+	branch = release-0.7
+	ignore = dirty
