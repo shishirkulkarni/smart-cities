@@ -14,6 +14,7 @@ sc_union_find* sc_union_find_init_igraph(igraph_t *g) {
 	sc_union_find *uf = (sc_union_find*) malloc(sizeof(sc_union_find));
 	uf->nodes = (long unsigned*) malloc(igraph_vcount(g) * sizeof(long unsigned));
 	uf->parent = (long unsigned*) malloc(igraph_vcount(g) * sizeof(long unsigned));
+	uf->rank = (long unsigned*) malloc(igraph_vcount(g) * sizeof(long unsigned));
 	uf->n = igraph_vcount(g);
 
 	igraph_vit_t vit;
@@ -21,6 +22,7 @@ sc_union_find* sc_union_find_init_igraph(igraph_t *g) {
 
 	while(!IGRAPH_VIT_END(vit)) {
 		uf->nodes[IGRAPH_VIT_GET(vit)] = uf->parent[IGRAPH_VIT_GET(vit)] = IGRAPH_VIT_GET(vit);
+		uf->rank[IGRAPH_VIT_GET(vit)] = 0;
 		IGRAPH_VIT_NEXT(vit);
 	}
 
@@ -32,35 +34,50 @@ sc_union_find* sc_union_find_init_igraph(igraph_t *g) {
 void sc_union_find_destroy(sc_union_find *uf) {
 	free(uf->nodes);
 	free(uf->parent);
+	free(uf->rank);
 }
 
 void sc_print_union_find(sc_union_find *uf) {
 	int i;
 	for(i = 0; i < uf->n; i++) {
-		printf("{%ld, %ld} ", uf->nodes[i], uf->parent[i]);
+		printf("{%ld, %ld, %ld} ", uf->nodes[i], uf->parent[i], uf->rank[i]);
 	}
 	printf("\n");
 }
 
 long int sc_union_find_find(sc_union_find *uf, int vertex_id) { 
-	if(vertex_id >= uf->n || vertex_id < 0)
+	if(vertex_id >= uf->n || vertex_id < 0) {
+		printf("*******************Union find error*******************\n");
 		return -1;
-	if(vertex_id == uf->parent[vertex_id])
-		return uf->parent[vertex_id];
+	}
 
-	return sc_union_find_find(uf, uf->parent[vertex_id]);
+	if(vertex_id != uf->parent[vertex_id])
+		uf->parent[vertex_id] = sc_union_find_find(uf, uf->parent[vertex_id]);
+
+	return uf->parent[vertex_id];
 }
 
 
 //TODO: implement path compression
 void sc_union_find_union(sc_union_find *uf, int src, int dest) {
-	long int src_find = sc_union_find_find(uf, src),
-		dest_find = sc_union_find_find(uf, dest);
+	long int src_root = sc_union_find_find(uf, src),
+		dest_root = sc_union_find_find(uf, dest);
 
-	if(src_find == dest_find || src_find == -1 || dest_find == -1)
+	if(src_root == -1 || dest_root == -1) {
+		printf("*******************Union find error*******************\n");
 		return;
+	}
 
-	uf->parent[src_find] = uf->parent[dest_find];
+	if(uf->rank[src_root] < uf->rank[dest_root]) {
+		uf->parent[src_root] = dest_root;
+	} else if(uf->rank[src_root] > uf->rank[dest_root]) {
+		uf->parent[dest_root] = src_root;
+	} else {
+		uf->parent[dest_root] = src_root;
+		uf->rank[src_root]++;
+	}
+
+	// uf->parent[src_find] = uf->parent[dest_find];
 }
 
 
@@ -152,6 +169,14 @@ void sc_print_vector(igraph_vector_t v) {
 	printf("\n");
 }
 
+void sc_print_strvector(igraph_strvector_t v) {
+	int i = 0;
+	for(i = 0; i < igraph_strvector_size(&v); i++) {
+		printf("%s ", STR(v, i));
+	}
+	printf("\n");
+}
+
 
 void sc_fill_vector_edge_nattribute(igraph_t *g, igraph_vector_t *v, const char *att_name) {
 	igraph_eit_t eit;
@@ -171,7 +196,14 @@ void sc_fill_vector_edge_nattribute(igraph_t *g, igraph_vector_t *v, const char 
 void sc_mst_kruskal_igraph(igraph_t *g, igraph_t *tree, const char *wt_attr) {
 	if(wt_attr == NULL)
 		return;
-	
+
+	igraph_strvector_t names;
+	igraph_strvector_init(&names, 0);
+
+	igraph_cattribute_list(g, NULL, NULL, NULL, NULL, &names, NULL);
+
+	// sc_print_strvector(names);
+
 	int i, count;
 
 	igraph_empty(tree, igraph_vcount(g), igraph_is_directed(g));
@@ -204,10 +236,18 @@ void sc_mst_kruskal_igraph(igraph_t *g, igraph_t *tree, const char *wt_attr) {
 		if(from_find != to_find) {
 			igraph_add_edge(tree, from, to);
 			sc_union_find_union(uf, from_find, to_find);
-			SETEAN(tree, wt_attr, count, EAN(g, wt_attr, MATRIX(wt_matrix, i, 0)));			
+			int j;
+			
+			//Copy over all the attributes from the original edge
+			for(j = 0; j < igraph_strvector_size(&names); j++) {
+				SETEAN(tree, STR(names, j), count, EAN(g, STR(names, j), MATRIX(wt_matrix, i, 0)));
+			}
+
 			count++;
 		}
 	}
+
+	igraph_strvector_destroy(&names);
 
 	sc_union_find_destroy(uf);	
 }

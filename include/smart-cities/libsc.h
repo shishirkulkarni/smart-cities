@@ -20,6 +20,7 @@ void sc_print_matrix(igraph_matrix_t);
 void sc_print_graph(igraph_t);
 
 void sc_print_vector(igraph_vector_t);
+void sc_print_strvector(igraph_strvector_t);
 
 void sc_fill_vector_edge_nattribute(igraph_t*, igraph_vector_t*, const char*);
 
@@ -30,6 +31,7 @@ void sc_mst_kruskal(igraph_t*, igraph_t*, igraph_bool_t);
 typedef struct sc_union_find {
 	long unsigned *nodes;
 	long unsigned *parent;
+	long unsigned *rank;
 	unsigned n;
 } sc_union_find;
 
