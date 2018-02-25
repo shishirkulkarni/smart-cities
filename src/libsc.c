@@ -1,6 +1,7 @@
 #include <smart-cities/libsc.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 
 /*
@@ -157,9 +158,8 @@ void sc_print_graph(igraph_t g) {
 	igraph_eit_destroy(&eit);
 
 	printf("\n");
-
-
 }
+
 
 void sc_print_vector(igraph_vector_t v) {
 	int i = 0;
@@ -189,6 +189,56 @@ void sc_fill_vector_edge_nattribute(igraph_t *g, igraph_vector_t *v, const char 
 	}
 
 	igraph_eit_destroy(&eit);
+}
+
+
+/*
+* create a matrix from the attribute names given
+* @param g: the original graph
+* @param mat: uninitialized matrix_t object
+* @param attr_names: null terminated array of strings containing attribute names
+*/
+void sc_fill_matrix_attributes(igraph_t *g, igraph_matrix_t *mat,
+	const char *attr_names[], sc_attribute_type type) {
+	int i, j;
+	for(i = 0; attr_names[i] != NULL; i++);
+	int n = i;
+
+	switch(type) {
+		case SC_VERTEX:
+			igraph_matrix_init(mat, igraph_vcount(g), n + 1);
+			igraph_vit_t vit;
+			igraph_vit_create(g, igraph_vss_all(), &vit);
+			while(!IGRAPH_VIT_END(vit)) {
+				
+				MATRIX(*mat, IGRAPH_VIT_GET(vit), 0) = IGRAPH_VIT_GET(vit);
+				
+				for(j = 0; j < n; j++) {
+					MATRIX(*mat, IGRAPH_VIT_GET(vit), j + 1) = VAN(g, attr_names[j], IGRAPH_VIT_GET(vit));
+				}
+
+				IGRAPH_VIT_NEXT(vit);
+			}
+
+			igraph_vit_destroy(&vit);
+			break;
+		case SC_EDGE:
+			igraph_matrix_init(mat, igraph_ecount(g), n + 1);
+			igraph_eit_t eit;
+			igraph_eit_create(g, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+			while(!IGRAPH_EIT_END(eit)) {
+
+				MATRIX(*mat, IGRAPH_EIT_GET(eit), 0) = IGRAPH_EIT_GET(eit);
+				
+				for(j = 0; j < n; j++) {
+					MATRIX(*mat, IGRAPH_EIT_GET(eit), j + 1) = EAN(g, attr_names[j], IGRAPH_EIT_GET(eit));
+				}
+
+				IGRAPH_EIT_NEXT(eit);
+			}
+			igraph_eit_destroy(&eit);
+			break;
+	}
 }
 
 // Only the weight attribute will be copied over to the tree edge
@@ -251,4 +301,86 @@ void sc_mst_kruskal_igraph(igraph_t *g, igraph_t *tree, const char *wt_attr) {
 
 	sc_union_find_destroy(uf);	
 }
+
+
+void sc_print_edge_attribute(igraph_t *g, const char *attr_name) {
+	igraph_eit_t eit;
+	igraph_eit_create(g, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+
+	while(!IGRAPH_EIT_END(eit)) {
+		printf("eid: %d, %s: %f\n", IGRAPH_EIT_GET(eit), attr_name, EAN(g, attr_name, IGRAPH_EIT_GET(eit)));
+		IGRAPH_EIT_NEXT(eit);
+	}
+
+	igraph_eit_destroy(&eit);
+}
+
+void sc_calculate_nover(igraph_t *g, const char *attr_name) {
+	int retval, i;
+	igraph_es_t es;
+	igraph_eit_t eit;
+
+	// DO NOT CHANGE THIS. THE CALCULATION OF COMMON VERTICES IS
+	// BASED ON THE ASSUMPTION THAT EDGES AND VERTICES ARE SORTED
+	retval = igraph_es_all(&es, IGRAPH_EDGEORDER_ID);
+	assert(retval == 0);
+	retval = igraph_eit_create(g, es, &eit);
+	assert(retval == 0);
+
+	while(!IGRAPH_EIT_END(eit)) {
+		long int edge = IGRAPH_EIT_GET(eit);
+		int u = IGRAPH_FROM(g, edge), v = IGRAPH_TO(g, edge),
+			common_count = 0, total_count = 0;
+		
+		igraph_vs_t u_adj, v_adj;
+		igraph_vit_t u_vit, v_vit;
+		igraph_vs_adj(&u_adj, u, IGRAPH_ALL);
+		igraph_vs_adj(&v_adj, v, IGRAPH_ALL);
+		igraph_vit_create(g, u_adj, &u_vit);
+		igraph_vit_create(g, v_adj, &v_vit);
+
+		/*
+		* Using the logic of merging 2 sorted lists to count common elements
+		*/
+		while(!IGRAPH_VIT_END(u_vit) && !IGRAPH_VIT_END(v_vit)) {
+			int u = IGRAPH_VIT_GET(u_vit), v = IGRAPH_VIT_GET(v_vit);
+			if(u == v) {
+				common_count++;
+				total_count++;
+				IGRAPH_VIT_NEXT(u_vit);
+				IGRAPH_VIT_NEXT(v_vit);
+			}
+			else if (u < v) {
+				IGRAPH_VIT_NEXT(u_vit);
+				total_count++;
+			} else {
+				IGRAPH_VIT_NEXT(v_vit);
+				total_count++;
+			}
+		}
+
+		while(!IGRAPH_VIT_END(u_vit)) {
+			total_count++;
+			IGRAPH_VIT_NEXT(u_vit);
+		}
+
+		while(!IGRAPH_VIT_END(v_vit)) {
+			total_count++;
+			IGRAPH_VIT_NEXT(v_vit);
+		}
+
+		//set NOVER as the edge's weight
+		SETEAN(g, attr_name, edge, (double)common_count / (total_count - 2));
+
+		igraph_vit_destroy(&u_vit);
+		igraph_vit_destroy(&v_vit);
+
+		IGRAPH_EIT_NEXT(eit);
+	}
+
+	igraph_eit_destroy(&eit);
+	igraph_es_destroy(&es);
+}
+
+
 

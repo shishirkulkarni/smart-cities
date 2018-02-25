@@ -10,6 +10,11 @@ int sc_rand(unsigned int);
 #define SC_ASC 0
 #define SC_DESC 1
 
+typedef unsigned sc_attribute_type;
+#define SC_VERTEX 0
+#define SC_EDGE 1
+
+
 #define NROW(m) igraph_matrix_nrow((&m))
 #define NCOL(m) igraph_matrix_ncol((&m))
 
@@ -41,5 +46,10 @@ void sc_print_union_find(sc_union_find*);
 long int sc_union_find_find(sc_union_find*, int);
 void sc_union_find_union(sc_union_find*, int, int);
 void sc_mst_kruskal_igraph(igraph_t*, igraph_t*, const char*);
+
+void sc_calculate_nover(igraph_t*, const char*);
+void sc_print_edge_attribute(igraph_t*, const char*);
+void sc_fill_matrix_attributes(igraph_t*, igraph_matrix_t*,
+	const char **, sc_attribute_type);
 
 #endif
