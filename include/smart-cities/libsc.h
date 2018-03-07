@@ -5,8 +5,8 @@
 
 
 #define SC_RANDOM_FILE "/dev/urandom"
-int sc_rand(unsigned int);
-
+int sc_rand();
+float sc_rand_double();
 #define SC_ASC 0
 #define SC_DESC 1
 
@@ -51,5 +51,7 @@ void sc_calculate_nover(igraph_t*, const char*);
 void sc_print_edge_attribute(igraph_t*, const char*);
 void sc_fill_matrix_attributes(igraph_t*, igraph_matrix_t*,
 	const char **, sc_attribute_type);
+void sc_fill_matrix_attributes_vs(igraph_t*, igraph_matrix_t*,
+	const char*, igraph_vs_t*);
 
 #endif

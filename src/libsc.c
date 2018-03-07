@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-
+#include <math.h>
 
 /*
 * Union find API
@@ -95,6 +95,14 @@ int sc_rand(unsigned int max) {
 	return random_no % max;
 }
 
+
+/*
+* function sc_rand_double: return a random number between closed interval 0 and 1
+* Please make sure you seed your random function before using this function
+*/
+float sc_rand_double() {
+	return (float)(rand() / (float)RAND_MAX); // only return fractional part
+}
 
 /*
 * A generic matrix sorter based on column_index
@@ -239,6 +247,38 @@ void sc_fill_matrix_attributes(igraph_t *g, igraph_matrix_t *mat,
 			igraph_eit_destroy(&eit);
 			break;
 	}
+}
+
+
+/*Description: fill matrix with given attributes for the given vertex set 
+* @param g: the graph
+* @param m: uninitialized matrix object
+* @param attr: attribute name to fill the matrix with
+* @param vs: initialized vertex set object
+* @return: a n * 2 matrix in @param m where n is the vertices selected by vs.
+		   The first column has vertex id. second column has attribute value.
+		   The matrix is filled in the increasing order of vertex id
+*/
+void sc_fill_matrix_attributes_vs(igraph_t *g, igraph_matrix_t *m,
+	const char *attr_name, igraph_vs_t *vs) {
+
+	igraph_vit_t vit;
+
+
+	igraph_vit_create(g, *vs, &vit);
+
+	igraph_matrix_init(m, IGRAPH_VIT_SIZE(vit), 2);
+
+	int i = 0;
+
+	while(!IGRAPH_VIT_END(vit)) {
+		MATRIX(*m, i, 0) = IGRAPH_VIT_GET(vit);
+		MATRIX(*m, i, 1) = VAN(g, attr_name, IGRAPH_VIT_GET(vit));
+		IGRAPH_VIT_NEXT(vit);
+		i += 1;
+	}
+	
+	igraph_vit_destroy(&vit);
 }
 
 // Only the weight attribute will be copied over to the tree edge
