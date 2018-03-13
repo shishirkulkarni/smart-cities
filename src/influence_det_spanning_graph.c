@@ -318,10 +318,14 @@ static void compute_k_diffusion(igraph_t *g, int k,
 
 
 int main(int argc, char *argv[]) {
-	if(argc != 2) {
-		printf("Usage: %s <input graph file>\n", argv[0]);
+	if(argc != 3) {
+		printf("Usage: %s <input graph file> <seed set percentage>\n", argv[0]);
 		exit(1);
 	}
+
+	// percentage of influencers
+	float k = 3;
+	k = (float)atoi(argv[2]) / 100;
 
 	igraph_i_set_attribute_table(&igraph_cattribute_table);
 	
@@ -346,7 +350,7 @@ int main(int argc, char *argv[]) {
 	compute_pagerank(&g, &pagerank, &max_pagerank_vertex);
 
 	igraph_vector_t influencers;
-	get_k_influencers(&g, &influencers, "pagerank", 3);
+	get_k_influencers(&g, &influencers, "pagerank", igraph_vcount(&g));
 
 	// sc_print_vector(influencers);
 
@@ -360,20 +364,21 @@ int main(int argc, char *argv[]) {
 	compute_pagerank(&spanning_graph, &span_pagerank, &span_max_pagerank_vertex);
 
 	igraph_vector_t seed_set;
-	get_k_influencers(&spanning_graph, &seed_set, "pagerank", 3);
+	get_k_influencers(&spanning_graph, &seed_set, "pagerank", k * igraph_vcount(&spanning_graph));
 
 	//end seed set computation
 
 	// Use the linear threshold to compute for spread estimation
 	compute_weight(&dg);
-	// sc_print_edge_attribute(&dg, WEIGHT);
 
 	compute_threshold(&dg);
 
-	igraph_vector_t k_influenced;
-	compute_k_diffusion(&dg, 3, &seed_set, 0.1, &k_influenced);
 
-	sc_print_vector(k_influenced);
+	igraph_vector_t k_influenced;
+	compute_k_diffusion(&dg, k * igraph_vcount(&dg), &seed_set, 0.1, &k_influenced);
+
+	// printf("seed set %%\t influenced %%\t number of nodes\n");
+	printf("%f\t%f\t%d\n", k, (float) igraph_vector_size(&k_influenced) / igraph_vcount(&dg), igraph_vcount(&dg));
 
 	return 0;
 }
