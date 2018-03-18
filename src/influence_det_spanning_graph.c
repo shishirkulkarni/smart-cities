@@ -318,14 +318,14 @@ static void compute_k_diffusion(igraph_t *g, int k,
 
 
 int main(int argc, char *argv[]) {
-	if(argc != 3) {
+	if(argc != 2) {
 		printf("Usage: %s <input graph file> <seed set percentage>\n", argv[0]);
 		exit(1);
 	}
 
 	// percentage of influencers
-	float k = 3;
-	k = (float)atoi(argv[2]) / 100;
+	// float k = 3;
+	// k = (float)atoi(argv[2]) / 100;
 
 	igraph_i_set_attribute_table(&igraph_cattribute_table);
 	
@@ -341,44 +341,61 @@ int main(int argc, char *argv[]) {
 	//create a directed graph from given graph
 	convert_to_directed(&g, &dg);
 
-	
-	//Compute seed set from spanning graph
+	compute_threshold(&dg); //compute threshole only once
 
-	igraph_vector_t pagerank;
-	igraph_real_t max_pagerank_vertex;
+	// sc_print_vertex_attribute(&dg, THRESHOLD);
 
-	compute_pagerank(&g, &pagerank, &max_pagerank_vertex);
+	// sc_print_edge_attribute(&dg, THRESHOLD);
 
-	igraph_vector_t influencers;
-	get_k_influencers(&g, &influencers, "pagerank", igraph_vcount(&g));
-
-	// sc_print_vector(influencers);
-
-	igraph_t spanning_graph;
-	compute_acyclic_spanning_graph(&g, &spanning_graph, max_pagerank_vertex);
-
-	// Compute pagerank for spanning graph
-	igraph_real_t span_max_pagerank_vertex;
-	igraph_vector_t span_pagerank;
-
-	compute_pagerank(&spanning_graph, &span_pagerank, &span_max_pagerank_vertex);
-
-	igraph_vector_t seed_set;
-	get_k_influencers(&spanning_graph, &seed_set, "pagerank", k * igraph_vcount(&spanning_graph));
-
-	//end seed set computation
-
-	// Use the linear threshold to compute for spread estimation
-	compute_weight(&dg);
-
-	compute_threshold(&dg);
+	// return 0;
 
 
-	igraph_vector_t k_influenced;
-	compute_k_diffusion(&dg, k * igraph_vcount(&dg), &seed_set, 0.1, &k_influenced);
+	int i;
+	float k;
 
-	// printf("seed set %%\t influenced %%\t number of nodes\n");
-	printf("%f\t%f\t%d\n", k, (float) igraph_vector_size(&k_influenced) / igraph_vcount(&dg), igraph_vcount(&dg));
+	for(k = 0.10; k < 1; k += 0.05) {
+
+		char filename[200];
+		sprintf(filename, "observations/Wiki-Vote/influence_const_thresh/%d.txt", (int)(k * 100));
+		// printf("%s\n", filename);
+
+		FILE *fp = fopen(filename, "w");
+		
+		for(i = 0; i < 20; i++) {
+
+			//Compute seed set from spanning graph
+			igraph_vector_t pagerank;
+			igraph_real_t max_pagerank_vertex;
+
+			compute_pagerank(&g, &pagerank, &max_pagerank_vertex);
+
+			igraph_vector_t influencers;
+			get_k_influencers(&g, &influencers, PAGERANK, igraph_vcount(&g));
+
+			igraph_t spanning_graph;
+			compute_acyclic_spanning_graph(&g, &spanning_graph, max_pagerank_vertex);
+
+			// Compute pagerank for spanning graph
+			igraph_real_t span_max_pagerank_vertex;
+			igraph_vector_t span_pagerank;
+
+			compute_pagerank(&spanning_graph, &span_pagerank, &span_max_pagerank_vertex);
+
+
+			igraph_vector_t seed_set;
+			get_k_influencers(&spanning_graph, &seed_set, PAGERANK, k * igraph_vcount(&spanning_graph));
+
+			//end seed set computation
+
+			// Use the linear threshold to compute for spread estimation
+			compute_weight(&dg);
+
+			igraph_vector_t k_influenced;
+			compute_k_diffusion(&dg, k * igraph_vcount(&dg), &seed_set, 0.1, &k_influenced);
+
+			fprintf(fp, "%f\t%f\t%d\n", k, (float) igraph_vector_size(&k_influenced) / igraph_vcount(&dg), igraph_vcount(&dg));
+		}
+	}
 
 	return 0;
 }

@@ -355,6 +355,20 @@ void sc_print_edge_attribute(igraph_t *g, const char *attr_name) {
 	igraph_eit_destroy(&eit);
 }
 
+
+void sc_print_vertex_attribute(igraph_t *g, const char *attr_name) {
+	igraph_vit_t vit;
+	igraph_vit_create(g, igraph_vss_all(), &vit);
+
+	while(!IGRAPH_VIT_END(vit)) {
+		printf("vid: %d, %s: %f\n", IGRAPH_VIT_GET(vit), attr_name, VAN(g, attr_name, IGRAPH_VIT_GET(vit)));
+		IGRAPH_VIT_NEXT(vit);
+	}
+
+	igraph_vit_destroy(&vit);
+}
+
+
 void sc_calculate_nover(igraph_t *g, const char *attr_name) {
 	int retval, i;
 	igraph_es_t es;
