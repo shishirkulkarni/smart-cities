@@ -7,6 +7,7 @@
 
 #define PRIM 0
 #define KRUSKAL 1
+#define BORUVKA 2
 
 #define NOVER "nover"
 #define EDGE_BETWEENNESS "eb"
@@ -106,6 +107,9 @@ static void compute_mst(igraph_t *graph, igraph_t *tree, int algo, const char* w
 			break;
 		case KRUSKAL:
 			sc_mst_kruskal_igraph(graph, tree, wt_attr);
+			break;
+		case BORUVKA:
+			sc_mst_boruvka_igraph(graph, tree, wt_attr);
 			break;
 	}
 }
@@ -273,9 +277,9 @@ int main(int argc, char *argv[]) {
 	compute_edge_betweenness(&g, EDGE_BETWEENNESS);
 
 	igraph_t tree;
-	compute_mst(&g, &tree, KRUSKAL, NOVER);
+	// compute_mst(&g, &tree, KRUSKAL, NOVER);
+	compute_mst(&g, &tree, BORUVKA, NOVER);
 
-	// validate_mst(&tree);
 
 	// Edge betweenness after	
 	// igraph_vector_t eb;

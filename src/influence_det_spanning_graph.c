@@ -356,7 +356,7 @@ int main(int argc, char *argv[]) {
 	for(k = 0.10; k < 1; k += 0.05) {
 
 		char filename[200];
-		sprintf(filename, "observations/Wiki-Vote/influence_const_thresh/%d.txt", (int)(k * 100));
+		sprintf(filename, "observations/erdosrenyi1000/influence_const_thresh/%d.txt", (int)(k * 100));
 		// printf("%s\n", filename);
 
 		FILE *fp = fopen(filename, "w");

@@ -46,6 +46,7 @@ void sc_print_union_find(sc_union_find*);
 long int sc_union_find_find(sc_union_find*, int);
 void sc_union_find_union(sc_union_find*, int, int);
 void sc_mst_kruskal_igraph(igraph_t*, igraph_t*, const char*);
+void sc_mst_boruvka_igraph(igraph_t*, igraph_t*, const char*);
 
 void sc_calculate_nover(igraph_t*, const char*);
 void sc_print_edge_attribute(igraph_t*, const char*);

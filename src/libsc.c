@@ -292,8 +292,6 @@ void sc_mst_kruskal_igraph(igraph_t *g, igraph_t *tree, const char *wt_attr) {
 
 	igraph_cattribute_list(g, NULL, NULL, NULL, NULL, &names, NULL);
 
-	// sc_print_strvector(names);
-
 	int i, count;
 
 	igraph_empty(tree, igraph_vcount(g), igraph_is_directed(g));
@@ -340,6 +338,116 @@ void sc_mst_kruskal_igraph(igraph_t *g, igraph_t *tree, const char *wt_attr) {
 	igraph_strvector_destroy(&names);
 
 	sc_union_find_destroy(uf);	
+}
+
+
+void sc_mst_boruvka_igraph(igraph_t *g, igraph_t *tree, const char *wt_attr) {
+	if(wt_attr == NULL)
+		return;
+
+
+	// init empty graph
+	igraph_empty(tree, igraph_vcount(g), igraph_is_directed(g));
+
+	sc_union_find *uf = sc_union_find_init_igraph(g);
+
+	int n = igraph_vcount(g);
+	igraph_vector_t edges;
+
+	igraph_vector_init(&edges, 0);
+
+	igraph_vector_t cheapest;
+	igraph_vector_init(&cheapest, igraph_vcount(g));
+
+	while(n > 1) {
+
+		// reset the cheapest vector for the next iteration
+		igraph_vector_fill(&cheapest, -1);
+
+		igraph_eit_t eit;
+		igraph_eit_create(g, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+
+		while(!IGRAPH_EIT_END(eit)) {
+			
+			igraph_integer_t from, to;
+			igraph_edge(g, IGRAPH_EIT_GET(eit), &from, &to);
+
+			igraph_integer_t from_set = sc_union_find_find(uf, from),
+					to_set = sc_union_find_find(uf, to);
+
+			if(from_set != to_set) {
+				if(VECTOR(cheapest)[from_set] == -1
+					|| EAN(g, wt_attr, IGRAPH_EIT_GET(eit))
+					< EAN(g, wt_attr, VECTOR(cheapest)[from_set]))
+					
+					VECTOR(cheapest)[from_set] = IGRAPH_EIT_GET(eit);
+
+				if(VECTOR(cheapest)[to_set] == -1
+					|| EAN(g, wt_attr, IGRAPH_EIT_GET(eit))
+					< EAN(g, wt_attr, VECTOR(cheapest)[to_set]))
+
+					VECTOR(cheapest)[to_set] = IGRAPH_EIT_GET(eit);
+			}
+
+			IGRAPH_EIT_NEXT(eit);
+		}
+
+		igraph_eit_destroy(&eit);
+				
+		int i;
+
+		for(i = 0; i < igraph_vector_size(&cheapest); i++) {
+			
+			if(VECTOR(cheapest)[i] != -1) {
+				igraph_integer_t from, to, from_set, to_set;
+				
+				igraph_edge(g, VECTOR(cheapest)[i], &from, &to);
+
+				from_set = sc_union_find_find(uf, from);
+				to_set = sc_union_find_find(uf, to);
+
+				if(from_set == to_set)
+					continue;
+
+				igraph_vector_push_back(&edges, from);	
+				igraph_vector_push_back(&edges, to);
+				
+				sc_union_find_union(uf, from_set, to_set);
+				n--;	
+			}
+		}
+	}
+
+	igraph_add_edges(tree, &edges, 0);
+	
+	// Copy all the attributes
+	igraph_strvector_t names;
+	igraph_strvector_init(&names, 0);
+
+	igraph_cattribute_list(g, NULL, NULL, NULL, NULL, &names, NULL);
+
+
+	igraph_eit_t eit;
+	igraph_eit_create(tree, igraph_ess_all(IGRAPH_EDGEORDER_ID), &eit);
+
+	while(!IGRAPH_EIT_END(eit)) {
+		int from, to, eid;
+		
+		igraph_edge(tree, IGRAPH_EIT_GET(eit), &from, &to);
+		igraph_get_eid(g, &eid, from, to, igraph_is_directed(g), 0);
+
+		int j;
+		//Copy over all the attributes from the original edge
+		for(j = 0; j < igraph_strvector_size(&names); j++) {
+			SETEAN(tree, STR(names, j), IGRAPH_EIT_GET(eit), EAN(g, STR(names, j), eid));
+		}
+		
+		IGRAPH_EIT_NEXT(eit);
+	}
+
+	igraph_eit_destroy(&eit);
+
+	sc_union_find_destroy(uf);
 }
 
 
