@@ -316,6 +316,13 @@ static void compute_k_diffusion(igraph_t *g, int k,
 	igraph_vector_update(total_k_influenced, &curr_active_nodes);
 }
 
+void get_hardcoded_seedset(igraph_vector_t *seed_set) {
+	igraph_vector_init(seed_set, 0);
+	igraph_vector_push_back(seed_set, 0);
+	igraph_vector_push_back(seed_set, 33);
+	igraph_vector_push_back(seed_set, 32);
+}
+
 
 int main(int argc, char *argv[]) {
 	if(argc != 2) {
@@ -351,13 +358,12 @@ int main(int argc, char *argv[]) {
 
 
 	int i;
-	float k;
+	float k = 0.3;
 
-	for(k = 0.10; k < 1; k += 0.05) {
+	// for(k = 0.3; k <= 0.3; k += 0.05) {
 
 		char filename[200];
-		sprintf(filename, "observations/erdosrenyi1000/influence_const_thresh/%d.txt", (int)(k * 100));
-		// printf("%s\n", filename);
+		sprintf(filename, "observations/karate/influence_greedy/%d.txt", (int)(k * 100));
 
 		FILE *fp = fopen(filename, "w");
 		
@@ -369,8 +375,8 @@ int main(int argc, char *argv[]) {
 
 			compute_pagerank(&g, &pagerank, &max_pagerank_vertex);
 
-			igraph_vector_t influencers;
-			get_k_influencers(&g, &influencers, PAGERANK, igraph_vcount(&g));
+			// igraph_vector_t influencers;
+			// get_k_influencers(&g, &influencers, PAGERANK, igraph_vcount(&g));
 
 			igraph_t spanning_graph;
 			compute_acyclic_spanning_graph(&g, &spanning_graph, max_pagerank_vertex);
@@ -383,7 +389,8 @@ int main(int argc, char *argv[]) {
 
 
 			igraph_vector_t seed_set;
-			get_k_influencers(&spanning_graph, &seed_set, PAGERANK, k * igraph_vcount(&spanning_graph));
+			// get_k_influencers(&spanning_graph, &seed_set, PAGERANK, k * igraph_vcount(&spanning_graph));
+			get_hardcoded_seedset(&seed_set);
 
 			//end seed set computation
 
@@ -395,7 +402,7 @@ int main(int argc, char *argv[]) {
 
 			fprintf(fp, "%f\t%f\t%d\n", k, (float) igraph_vector_size(&k_influenced) / igraph_vcount(&dg), igraph_vcount(&dg));
 		}
-	}
+	// }
 
 	return 0;
 }
